@@ -103,8 +103,7 @@ for the full contract.
 
 ## Compatibility
 
-`weave-ai` targets `weave.cli/v1`. Release notes name the `weave` versions exercised against the
-conformance fixtures.
+`weave-ai` targets `weave.cli/v1`. Release `v1.0.0` was tested with `weave v1.0.0`.
 
 ## Development
 
