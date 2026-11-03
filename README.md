@@ -8,16 +8,42 @@ Ollama models and OpenAI-compatible or Gemini endpoints.
 
 ## Install
 
+User-level installation, no admin or sudo required. Linux and macOS:
+
 ```sh
-go install github.com/prulloac/weave-ai@latest
+curl -fsSL https://raw.githubusercontent.com/prulloac/weave-ai/main/scripts/install.sh | sh
 ```
 
-Or download an archive from the [releases page](https://github.com/prulloac/weave-ai/releases).
-Put the binary on `$PATH` or in `<bundle>/.weave/bin/`; a bundle-local binary wins over `$PATH`.
+Windows PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/prulloac/weave-ai/main/scripts/install.ps1 | iex
+```
+
+The installer downloads the latest release, verifies its SHA-256 checksum and installs to
+`~/.local/bin` (Linux/macOS) or `%LOCALAPPDATA%\Programs\weave\bin` (Windows), then adds that
+directory to your user PATH.
+
+For a managed or non-standard environment, choose a user-writable directory and skip the profile
+edit:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/prulloac/weave-ai/main/scripts/install.sh \
+  | sh -s -- --bin-dir "$HOME/bin" --no-modify-path
+```
+
+Options: `--version <tag>`, `--bin-dir <dir>`, `--no-modify-path`; environment equivalents
+`WEAVE_AI_VERSION`, `WEAVE_AI_BIN_DIR` and `WEAVE_AI_NO_MODIFY_PATH=1`. The PowerShell script
+accepts `-Version`, `-BinDir` and `-NoPath`.
+
+`go install github.com/prulloac/weave-ai@latest` is also available for Go users, and every release
+includes downloadable archives. Put the binary on `$PATH` or in `<bundle>/.weave/bin/`; a
+bundle-local binary wins over `$PATH`.
 
 ## Use
 
 ```sh
+weave-ai --version               # installed version and protocol
 weave-ai --describe              # provider, endpoint and consent; never the API key
 
 weave ingest ~/notes --db ~/.weave/index.db --with-enricher ai

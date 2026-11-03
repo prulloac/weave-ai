@@ -12,8 +12,10 @@ access to bundles or index databases.
 - Race: `go test -race -count=1 -shuffle=on ./...`
 - Vet / format: `go vet ./...`; `gofmt -l .` must print nothing
 - Local describe: `go run . --describe`
+- Version: `go run . --version` (release builds inject the tag)
 - Full gate: `./scripts/verify.sh`
 - Sync contract fixtures (from a workspace checkout): `./scripts/sync-fixtures.sh`
+- User-level install: `./scripts/install.sh --help` (or `./scripts/install.ps1` on Windows)
 - Docs (optional): `npx --yes markdownlint-cli2 "**/*.md"`
 
 ## Layout
@@ -26,7 +28,7 @@ main_test.go        httptest-based provider and protocol tests
 conformance_test.go fixture-driven protocol conformance tests
 testdata/extension-ipc/  canonical fixtures mirrored from the weave contract
 docs/bdd/           behavior scenarios for this binary
-scripts/            verification and fixture-sync scripts
+scripts/            verification, fixture-sync and user-level installer scripts
 README.md           install, usage, configuration and privacy
 ```
 
@@ -55,10 +57,14 @@ README.md           install, usage, configuration and privacy
 6. **Configuration precedence:** environment overrides file values; missing config is valid.
 7. **Bounded input:** stdin is limited to 1 MiB, enrichment bodies to 64 KiB and keywords to 32.
 8. **No core imports:** the binary must build and test from this repository alone.
+9. **User-level install:** `scripts/install.sh`/`scripts/install.ps1` default to a user-writable
+   directory and must never require `sudo` or administrator rights. `--bin-dir`/`-BinDir` and
+   `--no-modify-path`/`-NoPath` support managed machines.
 
 ## Testing quirks
 
 - `main_test.go` uses `httptest` and `t.Setenv`; it never calls a real provider.
+- `TestVersionOutput` pins the `weave-ai <tag> (weave.cli/v1)` format.
 - `conformance_test.go` feeds the mirrored `testdata/extension-ipc/` fixtures through `run` and
   checks the emitted envelopes. Keep them identical to `weave/contract/v1/golden/extension-ipc/`;
   `./scripts/sync-fixtures.sh` refreshes them from a workspace checkout.
@@ -70,7 +76,11 @@ README.md           install, usage, configuration and privacy
 
 - Tags use `vX.Y.Z`; `.github/workflows/release.yml` builds Linux, macOS and Windows archives for
   `amd64` and `arm64`, writes a checksum file and creates a draft GitHub Release.
+- Archives contain `weave-ai` (`weave-ai.exe` on Windows), `README.md` and `LICENSE`; the tag is
+  injected with `-X main.version`, and `weave-ai --version` reports it.
 - Keep the archive and binary name `weave-ai`; Weave discovers extensions by the `weave-` prefix.
+- The user-level installers download the latest release, verify the SHA-256 checksum and default to
+  `~/.local/bin` or `%LOCALAPPDATA%\Programs\weave\bin`.
 - Name the tested `weave` versions in release notes when the protocol or behavior changes.
 
 ## Documentation split

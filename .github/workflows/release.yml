@@ -46,6 +46,12 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+      - name: Verify version injection
+        run: |
+          CGO_ENABLED=0 go build -trimpath \
+            -ldflags "-s -w -X main.version=${RELEASE_TAG}" \
+            -o /tmp/weave-ai .
+          /tmp/weave-ai --version
       - name: Build archives
         run: |
           set -euo pipefail
@@ -55,12 +61,14 @@ jobs:
             os="${target%/*}"
             arch="${target#*/}"
             if [ "$os" = "windows" ]; then
-              CGO_ENABLED=0 GOOS="$os" GOARCH="$arch" go build -trimpath -ldflags "-s -w" -o dist/weave-ai.exe .
-              (cd dist && zip -q "weave-ai_${VERSION}_${os}_${arch}.zip" weave-ai.exe)
-              rm dist/weave-ai.exe
+              CGO_ENABLED=0 GOOS="$os" GOARCH="$arch" go build -trimpath -ldflags "-s -w -X main.version=${RELEASE_TAG}" -o dist/weave-ai.exe .
+              stage="$(mktemp -d)"
+              cp dist/weave-ai.exe README.md LICENSE "$stage"/
+              (cd "$stage" && zip -q "${GITHUB_WORKSPACE}/dist/weave-ai_${VERSION}_${os}_${arch}.zip" weave-ai.exe README.md LICENSE)
+              rm -rf "$stage" dist/weave-ai.exe
             else
-              CGO_ENABLED=0 GOOS="$os" GOARCH="$arch" go build -trimpath -ldflags "-s -w" -o dist/weave-ai .
-              tar -czf "dist/weave-ai_${VERSION}_${os}_${arch}.tar.gz" -C dist weave-ai
+              CGO_ENABLED=0 GOOS="$os" GOARCH="$arch" go build -trimpath -ldflags "-s -w -X main.version=${RELEASE_TAG}" -o dist/weave-ai .
+              tar -czf "dist/weave-ai_${VERSION}_${os}_${arch}.tar.gz" -C dist weave-ai -C .. README.md LICENSE
               rm dist/weave-ai
             fi
           done
@@ -103,8 +111,23 @@ jobs:
           case "${RELEASE_TAG}" in
             *-rc*|*-beta*) PRERELEASE="--prerelease" ;;
           esac
+          NOTES="$(printf '%s\n' \
+            'Install without compiling:' \
+            '' \
+            '```sh' \
+            'curl -fsSL https://raw.githubusercontent.com/prulloac/weave-ai/main/scripts/install.sh | sh' \
+            '```' \
+            '' \
+            'Windows PowerShell:' \
+            '' \
+            '```powershell' \
+            'irm https://raw.githubusercontent.com/prulloac/weave-ai/main/scripts/install.ps1 | iex' \
+            '```' \
+            '' \
+            'Or download an archive below.')"
           gh release create "${RELEASE_TAG}" dist/* \
             --draft \
             --title "${RELEASE_TAG}" \
             --generate-notes \
+            --notes "${NOTES}" \
             ${PRERELEASE}

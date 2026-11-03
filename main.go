@@ -19,6 +19,8 @@ const (
 	maxKeywords     = 32
 )
 
+var version = "dev"
+
 type requestEnvelope struct {
 	V    string `json:"v"`
 	Type string `json:"type"`
@@ -58,10 +60,20 @@ type rerankResponse struct {
 }
 
 func main() {
-	if len(os.Args) > 1 && (os.Args[1] == "--describe" || os.Args[1] == "describe") {
-		os.Exit(describe(os.Stdout, os.Stderr))
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "--version", "-v", "version":
+			printVersion(os.Stdout)
+			return
+		case "--describe", "describe":
+			os.Exit(describe(os.Stdout, os.Stderr))
+		}
 	}
 	os.Exit(run(os.Stdin, os.Stdout, os.Stderr))
+}
+
+func printVersion(stdout io.Writer) {
+	fmt.Fprintf(stdout, "weave-ai %s (%s)\n", version, protocolVersion)
 }
 
 func describe(stdout, stderr io.Writer) int {

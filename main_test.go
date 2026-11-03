@@ -30,6 +30,18 @@ func invokePlugin(t *testing.T, input string, env map[string]string) (int, strin
 	return code, stdout.String(), stderr.String()
 }
 
+func TestVersionOutput(t *testing.T) {
+	original := version
+	version = "v9.9.9"
+	t.Cleanup(func() { version = original })
+
+	var stdout bytes.Buffer
+	printVersion(&stdout)
+	if got, want := stdout.String(), "weave-ai v9.9.9 (weave.cli/v1)\n"; got != want {
+		t.Fatalf("version output = %q, want %q", got, want)
+	}
+}
+
 func TestOllamaEnrichment(t *testing.T) {
 	content := `{"inferred_keywords":["sqlite","wal"],"custom_metadata":{"summary":"ok"}}`
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
