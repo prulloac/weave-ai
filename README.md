@@ -75,6 +75,11 @@ and candidates with `keyword_score`, `lexical_score` and `fuzzy_score`. Response
 See the [AI extension specification](https://github.com/prulloac/weave-docs/blob/main/specs/weave-ai-plugin.md)
 for the full contract.
 
+## Compatibility
+
+`weave-ai` targets `weave.cli/v1`. Release notes name the `weave` versions exercised against the
+conformance fixtures.
+
 ## Development
 
 ```sh
