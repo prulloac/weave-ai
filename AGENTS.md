@@ -13,6 +13,7 @@ access to bundles or index databases.
 - Vet / format: `go vet ./...`; `gofmt -l .` must print nothing
 - Local describe: `go run . --describe`
 - Full gate: `./scripts/verify.sh`
+- Sync contract fixtures (from a workspace checkout): `./scripts/sync-fixtures.sh`
 - Docs (optional): `npx --yes markdownlint-cli2 "**/*.md"`
 
 ## Layout
@@ -22,7 +23,10 @@ main.go             CLI entrypoint, weave.cli/v1 envelopes, enrichment and reran
 config.go           .weave/ai.yaml and WEAVE_AI_* configuration
 providers.go        Ollama, OpenAI-compatible and Gemini HTTP clients
 main_test.go        httptest-based provider and protocol tests
+conformance_test.go fixture-driven protocol conformance tests
+testdata/extension-ipc/  canonical fixtures mirrored from the weave contract
 docs/bdd/           behavior scenarios for this binary
+scripts/            verification and fixture-sync scripts
 README.md           install, usage, configuration and privacy
 ```
 
@@ -55,6 +59,9 @@ README.md           install, usage, configuration and privacy
 ## Testing quirks
 
 - `main_test.go` uses `httptest` and `t.Setenv`; it never calls a real provider.
+- `conformance_test.go` feeds the mirrored `testdata/extension-ipc/` fixtures through `run` and
+  checks the emitted envelopes. Keep them identical to `weave/contract/v1/golden/extension-ipc/`;
+  `./scripts/sync-fixtures.sh` refreshes them from a workspace checkout.
 - Provider tests assert request paths, authorization headers and response parsing.
 - Error-hygiene tests assert that secrets and document bodies never reach stderr.
 - Run `go test -race ./...` before opening a pull request.

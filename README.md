@@ -82,6 +82,10 @@ for the full contract.
 go build -o weave-ai .
 ```
 
+Contract fixtures live in `testdata/extension-ipc/` and mirror
+[`weave/contract/v1/golden/extension-ipc`](https://github.com/prulloac/weave/tree/main/contract/v1/golden/extension-ipc).
+From a workspace checkout, `./scripts/sync-fixtures.sh` refreshes them.
+
 Behavior changes need a spec update in [`weave-docs`](https://github.com/prulloac/weave-docs) first.
 See [`AGENTS.md`](AGENTS.md) for the repository workflow.
 
