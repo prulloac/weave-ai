@@ -12,7 +12,7 @@ access to bundles or index databases.
 - Race: `go test -race -count=1 -shuffle=on ./...`
 - Vet / format: `go vet ./...`; `gofmt -l .` must print nothing
 - Local describe: `go run . --describe`
-- Full gate: `go test -race -count=1 -shuffle=on ./... && go vet ./... && test -z "$(gofmt -l .)"`
+- Full gate: `./scripts/verify.sh`
 - Docs (optional): `npx --yes markdownlint-cli2 "**/*.md"`
 
 ## Layout

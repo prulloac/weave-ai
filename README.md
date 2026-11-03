@@ -78,10 +78,7 @@ for the full contract.
 ## Development
 
 ```sh
-go test ./...
-go test -race ./...
-go vet ./...
-gofmt -l .
+./scripts/verify.sh
 go build -o weave-ai .
 ```
 
