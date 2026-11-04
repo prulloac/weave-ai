@@ -4,7 +4,7 @@ Behavior cases for the `weave-ai` subprocess. Core redaction and per-document co
 [`weave`](https://github.com/prulloac/weave/blob/main/docs/bdd/ai-plugin.md).
 
 **Spec reference:** [weave-ai-plugin.md](https://github.com/prulloac/weave-docs/blob/main/specs/weave-ai-plugin.md)
-**Go tests:** `main_test.go`
+**Go tests:** `main_test.go`, `vision_test.go`, `embedding_test.go`
 
 ---
 
