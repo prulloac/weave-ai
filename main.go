@@ -3,6 +3,8 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,10 +15,14 @@ import (
 )
 
 const (
-	protocolVersion = "weave.cli/v1"
-	maxInput        = 1 << 20
-	maxBody         = 64 << 10
-	maxKeywords     = 32
+	protocolVersion  = "weave.cli/v1"
+	maxInput         = 32 << 20
+	maxImageDecoded  = 20 << 20
+	maxBody          = 64 << 10
+	maxText          = 1 << 20
+	maxEXIF          = 256 << 10
+	maxEmbeddingText = 8 << 10
+	maxKeywords      = 32
 )
 
 var version = "dev"
@@ -41,6 +47,35 @@ type rerankRequest struct {
 		LexicalScore float64 `json:"lexical_score"`
 		FuzzyScore   float64 `json:"fuzzy_score"`
 	} `json:"candidates"`
+}
+
+type visionRequest struct {
+	MediaType string         `json:"media_type"`
+	Image     string         `json:"image"`
+	Text      string         `json:"text"`
+	EXIF      map[string]any `json:"exif"`
+	Prompt    string         `json:"prompt"`
+}
+
+type visionResponse struct {
+	V           string   `json:"v"`
+	Title       string   `json:"title"`
+	Description string   `json:"description"`
+	Text        string   `json:"text"`
+	Keywords    []string `json:"keywords"`
+}
+
+type embeddingRequest struct {
+	Text      string `json:"text"`
+	MediaType string `json:"media_type"`
+	Model     string `json:"model"`
+}
+
+type embeddingResponse struct {
+	V      string `json:"v"`
+	Model  string `json:"model"`
+	Dim    int    `json:"dim"`
+	Vector string `json:"vector"`
 }
 
 type enrichmentResponse struct {
@@ -84,7 +119,12 @@ func describe(stdout, stderr io.Writer) int {
 	}
 	fmt.Fprintf(stdout, "provider: %s\n", cfg.Provider)
 	fmt.Fprintf(stdout, "model: %s\n", cfg.Model)
+	fmt.Fprintf(stdout, "vision_model: %s\n", cfg.VisionModel)
+	fmt.Fprintf(stdout, "embedding_model: %s\n", cfg.EmbeddingModel)
 	fmt.Fprintf(stdout, "endpoint: %s\n", cfg.BaseURL)
+	fmt.Fprintf(stdout, "vision: true\n")
+	fmt.Fprintf(stdout, "embedding: true\n")
+	fmt.Fprintf(stdout, "protocol: %s\n", protocolVersion)
 	fmt.Fprintf(stdout, "consent: privacy.ai.send required per document\n")
 	fmt.Fprintf(stdout, "api_key_env: %s (value never printed)\n", cfg.APIKeyEnv)
 	return 0
@@ -129,6 +169,20 @@ func run(stdin io.Reader, stdout, stderr io.Writer) int {
 			return 1
 		}
 		response, err = enrich(ctx, provider, request)
+	case "vision_request":
+		var request visionRequest
+		if err := json.Unmarshal(data, &request); err != nil {
+			fmt.Fprintln(stderr, "weave-ai: invalid vision request")
+			return 1
+		}
+		response, err = vision(ctx, provider, request)
+	case "embedding_request":
+		var request embeddingRequest
+		if err := json.Unmarshal(data, &request); err != nil {
+			fmt.Fprintln(stderr, "weave-ai: invalid embedding request")
+			return 1
+		}
+		response, err = embedding(ctx, provider, cfg, request)
 	case "rerank_request":
 		var request rerankRequest
 		if err := json.Unmarshal(data, &request); err != nil {
@@ -185,6 +239,123 @@ func enrich(ctx context.Context, provider provider, request enrichmentRequest) (
 		V:                protocolVersion,
 		InferredKeywords: normalizeKeywords(model.InferredKeywords),
 		CustomMetadata:   model.CustomMetadata,
+	}, nil
+}
+
+func vision(ctx context.Context, provider provider, request visionRequest) (any, error) {
+	image, err := base64.StdEncoding.DecodeString(request.Image)
+	if err != nil {
+		return nil, fmt.Errorf("invalid image")
+	}
+	if len(image) == 0 {
+		return nil, fmt.Errorf("invalid image")
+	}
+	if len(image) > maxImageDecoded {
+		return nil, fmt.Errorf("image too large")
+	}
+	mediaType := request.MediaType
+	if mediaType == "" {
+		mediaType = "image/jpeg"
+	}
+	prompt, err := visionPrompt(request)
+	if err != nil {
+		return nil, err
+	}
+	system := "You analyze images for a local knowledge database. " +
+		"Return ONLY a JSON object with keys title, description, text (optional) and keywords " +
+		"(array of 3-8 lowercase strings). No prose, no code fences."
+	content, err := provider.vision(ctx, system, prompt, image, mediaType)
+	if err != nil {
+		return nil, err
+	}
+	var model struct {
+		Title       string   `json:"title"`
+		Description string   `json:"description"`
+		Text        string   `json:"text"`
+		Keywords    []string `json:"keywords"`
+	}
+	if err := json.Unmarshal([]byte(extractJSON(content)), &model); err != nil {
+		return nil, fmt.Errorf("invalid model output")
+	}
+	text := strings.TrimSpace(model.Text)
+	if len(text) > maxText {
+		text = text[:maxText]
+	}
+	return visionResponse{
+		V:           protocolVersion,
+		Title:       strings.TrimSpace(model.Title),
+		Description: strings.TrimSpace(model.Description),
+		Text:        text,
+		Keywords:    normalizeKeywords(model.Keywords),
+	}, nil
+}
+
+func visionPrompt(request visionRequest) (string, error) {
+	var builder strings.Builder
+	builder.WriteString("Describe the image and transcribe any visible text.\n")
+	if request.Prompt != "" {
+		builder.WriteString(request.Prompt)
+		builder.WriteString("\n")
+	}
+	if request.Text != "" {
+		text := request.Text
+		if len(text) > maxText {
+			text = text[:maxText]
+		}
+		builder.WriteString("Existing OCR text:\n")
+		builder.WriteString(text)
+		builder.WriteString("\n")
+	}
+	if len(request.EXIF) > 0 {
+		exif, err := json.Marshal(request.EXIF)
+		if err != nil {
+			return "", fmt.Errorf("invalid exif")
+		}
+		if len(exif) > maxEXIF {
+			return "", fmt.Errorf("exif too large")
+		}
+		builder.WriteString("EXIF context:\n")
+		builder.Write(exif)
+		builder.WriteString("\n")
+	}
+	return builder.String(), nil
+}
+
+func embedding(ctx context.Context, provider provider, cfg config, request embeddingRequest) (any, error) {
+	text := strings.TrimSpace(request.Text)
+	if text == "" {
+		return nil, fmt.Errorf("empty embedding text")
+	}
+	if len(text) > maxEmbeddingText {
+		text = text[:maxEmbeddingText]
+	}
+	model := strings.TrimSpace(request.Model)
+	if model == "" {
+		model = cfg.EmbeddingModel
+	}
+	if model == "" {
+		return nil, fmt.Errorf("missing embedding model")
+	}
+	values, err := provider.embed(ctx, model, text)
+	if err != nil {
+		return nil, err
+	}
+	if len(values) == 0 {
+		return nil, fmt.Errorf("empty embedding")
+	}
+	raw := make([]byte, 4*len(values))
+	for index, value := range values {
+		converted := float32(value)
+		if math.IsNaN(float64(converted)) || math.IsInf(float64(converted), 0) {
+			return nil, fmt.Errorf("invalid embedding")
+		}
+		binary.LittleEndian.PutUint32(raw[index*4:], math.Float32bits(converted))
+	}
+	return embeddingResponse{
+		V:      protocolVersion,
+		Model:  model,
+		Dim:    len(values),
+		Vector: base64.StdEncoding.EncodeToString(raw),
 	}, nil
 }
 

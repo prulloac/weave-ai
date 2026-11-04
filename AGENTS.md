@@ -21,10 +21,12 @@ access to bundles or index databases.
 ## Layout
 
 ```text
-main.go             CLI entrypoint, weave.cli/v1 envelopes, enrichment and rerank logic
+main.go             CLI entrypoint, weave.cli/v1 envelopes, enrichment, vision, embedding and rerank logic
 config.go           .weave/ai.yaml and WEAVE_AI_* configuration
 providers.go        Ollama, OpenAI-compatible and Gemini HTTP clients
-main_test.go        httptest-based provider and protocol tests
+main_test.go        httptest-based provider, config and protocol tests
+vision_test.go      vision request, provider payload and image-limit tests
+embedding_test.go   embedding request, vector encoding and provider tests
 conformance_test.go fixture-driven protocol conformance tests
 testdata/extension-ipc/  canonical fixtures mirrored from the weave contract
 docs/bdd/           behavior scenarios for this binary
@@ -55,7 +57,8 @@ README.md           install, usage, configuration and privacy
 5. **Provider failures degrade:** timeouts, non-2xx responses, malformed JSON and incomplete rerank
    coverage return exit `1`; Weave keeps core behavior.
 6. **Configuration precedence:** environment overrides file values; missing config is valid.
-7. **Bounded input:** stdin is limited to 1 MiB, enrichment bodies to 64 KiB and keywords to 32.
+7. **Bounded input:** stdin is limited to 32 MiB, decoded vision images to 20 MiB, enrichment bodies
+   to 64 KiB, EXIF to 256 KiB, text output to 1 MiB and keywords to 32.
 8. **No core imports:** the binary must build and test from this repository alone.
 9. **User-level install:** `scripts/install.sh`/`scripts/install.ps1` default to a user-writable
    directory and must never require `sudo` or administrator rights. `--bin-dir`/`-BinDir` and

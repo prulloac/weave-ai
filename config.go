@@ -14,6 +14,8 @@ import (
 type config struct {
 	Provider       string        `yaml:"provider"`
 	Model          string        `yaml:"model"`
+	VisionModel    string        `yaml:"vision_model"`
+	EmbeddingModel string        `yaml:"embedding_model"`
 	BaseURL        string        `yaml:"base_url"`
 	APIKeyEnv      string        `yaml:"api_key_env"`
 	AllowSensitive bool          `yaml:"allow_sensitive"`
@@ -51,6 +53,12 @@ func loadConfig() (config, error) {
 	if value := os.Getenv("WEAVE_AI_MODEL"); value != "" {
 		cfg.Model = value
 	}
+	if value := os.Getenv("WEAVE_AI_VISION_MODEL"); value != "" {
+		cfg.VisionModel = value
+	}
+	if value := os.Getenv("WEAVE_AI_EMBEDDING_MODEL"); value != "" {
+		cfg.EmbeddingModel = value
+	}
 	if value := os.Getenv("WEAVE_AI_BASE_URL"); value != "" {
 		cfg.BaseURL = value
 	}
@@ -69,6 +77,12 @@ func loadConfig() (config, error) {
 	}
 	if cfg.Model == "" {
 		cfg.Model = "qwen2.5:7b"
+	}
+	if cfg.VisionModel == "" {
+		cfg.VisionModel = cfg.Model
+	}
+	if cfg.EmbeddingModel == "" {
+		cfg.EmbeddingModel = defaultEmbeddingModel(cfg.Provider)
 	}
 	if cfg.TimeoutValue != "" {
 		parsed, err := time.ParseDuration(cfg.TimeoutValue)
@@ -106,4 +120,15 @@ func loadConfig() (config, error) {
 
 func (c config) apiKey() string {
 	return strings.TrimSpace(os.Getenv(c.APIKeyEnv))
+}
+
+func defaultEmbeddingModel(provider string) string {
+	switch provider {
+	case "openai":
+		return "text-embedding-3-small"
+	case "gemini":
+		return "text-embedding-004"
+	default:
+		return "nomic-embed-text"
+	}
 }

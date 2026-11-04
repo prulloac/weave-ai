@@ -19,6 +19,8 @@ func invokePlugin(t *testing.T, input string, env map[string]string) (int, strin
 	t.Setenv("WEAVE_AI_CONFIG", "")
 	t.Setenv("WEAVE_AI_PROVIDER", "")
 	t.Setenv("WEAVE_AI_MODEL", "")
+	t.Setenv("WEAVE_AI_VISION_MODEL", "")
+	t.Setenv("WEAVE_AI_EMBEDDING_MODEL", "")
 	t.Setenv("WEAVE_AI_BASE_URL", "")
 	t.Setenv("WEAVE_AI_API_KEY", "")
 	t.Setenv("WEAVE_AI_TIMEOUT", "")
@@ -209,7 +211,11 @@ func TestDescribePrintsEndpointAndConsent(t *testing.T) {
 	for _, want := range []string{
 		"provider: ollama",
 		"model: test-model",
+		"vision_model: test-model",
+		"embedding_model: nomic-embed-text",
 		"endpoint: http://127.0.0.1:11434",
+		"vision: true",
+		"embedding: true",
 		"consent: privacy.ai.send required",
 		"api_key_env: WEAVE_AI_API_KEY (value never printed)",
 	} {
@@ -228,6 +234,40 @@ func TestInvalidProvider(t *testing.T) {
 	})
 	if code != 1 || !strings.Contains(stderr, "provider") {
 		t.Fatalf("expected provider error, code=%d stderr=%q", code, stderr)
+	}
+}
+
+func TestVisionAndEmbeddingConfig(t *testing.T) {
+	for _, key := range []string{
+		"WEAVE_AI_PROVIDER", "WEAVE_AI_MODEL", "WEAVE_AI_VISION_MODEL",
+		"WEAVE_AI_EMBEDDING_MODEL", "WEAVE_AI_BASE_URL", "WEAVE_AI_API_KEY",
+		"WEAVE_AI_TIMEOUT",
+	} {
+		t.Setenv(key, "")
+	}
+	config := filepath.Join(t.TempDir(), "ai.yaml")
+	body := "provider: ollama\nmodel: text-model\nvision_model: llava\nembedding_model: embed-small\n"
+	if err := os.WriteFile(config, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("WEAVE_AI_CONFIG", config)
+
+	cfg, err := loadConfig()
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if cfg.VisionModel != "llava" || cfg.EmbeddingModel != "embed-small" {
+		t.Fatalf("config = %+v", cfg)
+	}
+
+	t.Setenv("WEAVE_AI_VISION_MODEL", "llava-next")
+	t.Setenv("WEAVE_AI_EMBEDDING_MODEL", "embed-large")
+	cfg, err = loadConfig()
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if cfg.VisionModel != "llava-next" || cfg.EmbeddingModel != "embed-large" {
+		t.Fatalf("env config = %+v", cfg)
 	}
 }
 
