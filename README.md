@@ -58,7 +58,7 @@ weave search ~/notes "token rotation" --mode semantic
 - Embedding requests return normalized float32 vectors for `document_embeddings` and `vec0`.
 - Reranking blends `0.5 * core + 0.5 * rerank`; failures fall back to core order.
 - Weave applies the runner timeout (`--timeout`, default `5s`) and reports failures as warnings.
-- Vision and embeddings require `weave v1.0.0` or newer.
+- Vision and embeddings require `weave v0.7.0` or newer.
 
 ## Configuration
 
@@ -124,7 +124,7 @@ for the full contract.
 
 ## Compatibility
 
-`weave-ai` targets `weave.cli/v1`. Release `v1.0.0` is tested with `weave v1.0.0` and includes
+`weave-ai` targets `weave.cli/v1`. Release `v0.7.0` is tested with `weave v0.7.0` and includes
 vision and embedding requests.
 
 ## Development
