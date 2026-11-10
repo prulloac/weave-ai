@@ -141,6 +141,12 @@ From a workspace checkout, `./scripts/sync-fixtures.sh` refreshes them.
 Behavior changes need a spec update in [`weave-docs`](https://github.com/prulloac/weave-docs) first.
 See [`AGENTS.md`](AGENTS.md) for the repository workflow.
 
+## Issues
+
+This repository does not accept issues. Report first-party defects and documentation errors in
+[`prulloac/weave`](https://github.com/prulloac/weave/issues/new/choose); security reports use private
+vulnerability reporting there.
+
 ## License
 
 MIT. See [`LICENSE`](LICENSE).
