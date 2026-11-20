@@ -15,6 +15,8 @@ import (
 )
 
 const (
+	extensionName    = "ai"
+	manifestVersion  = "weave.extension/v1"
 	protocolVersion  = "weave.cli/v1"
 	maxInput         = 32 << 20
 	maxImageDecoded  = 20 << 20
@@ -26,6 +28,15 @@ const (
 )
 
 var version = "dev"
+
+// manifest is the machine-readable capability document read by `weave extensions check`.
+type manifest struct {
+	V             string   `json:"v"`
+	Name          string   `json:"name"`
+	Version       string   `json:"version"`
+	Protocols     []string `json:"protocols"`
+	AnalysisModes []string `json:"analysis_modes"`
+}
 
 type requestEnvelope struct {
 	V    string `json:"v"`
@@ -101,7 +112,7 @@ func main() {
 			printVersion(os.Stdout)
 			return
 		case "--describe", "describe":
-			os.Exit(describe(os.Stdout, os.Stderr))
+			os.Exit(describe(os.Stdout, os.Stderr, hasFlag(os.Args[1:], "--json")))
 		}
 	}
 	os.Exit(run(os.Stdin, os.Stdout, os.Stderr))
@@ -111,11 +122,26 @@ func printVersion(stdout io.Writer) {
 	fmt.Fprintf(stdout, "weave-ai %s (%s)\n", version, protocolVersion)
 }
 
-func describe(stdout, stderr io.Writer) int {
+func describe(stdout, stderr io.Writer, jsonMode bool) int {
 	cfg, err := loadConfig()
 	if err != nil {
 		fmt.Fprintf(stderr, "weave-ai: %s\n", err)
 		return 1
+	}
+	if jsonMode {
+		encoded, err := json.Marshal(manifest{
+			V:             manifestVersion,
+			Name:          extensionName,
+			Version:       version,
+			Protocols:     []string{protocolVersion},
+			AnalysisModes: []string{"document"},
+		})
+		if err != nil {
+			fmt.Fprintf(stderr, "weave-ai: %s\n", err)
+			return 1
+		}
+		fmt.Fprintf(stdout, "%s\n", encoded)
+		return 0
 	}
 	fmt.Fprintf(stdout, "provider: %s\n", cfg.Provider)
 	fmt.Fprintf(stdout, "model: %s\n", cfg.Model)
@@ -128,6 +154,15 @@ func describe(stdout, stderr io.Writer) int {
 	fmt.Fprintf(stdout, "consent: privacy.ai.send required per document\n")
 	fmt.Fprintf(stdout, "api_key_env: %s (value never printed)\n", cfg.APIKeyEnv)
 	return 0
+}
+
+func hasFlag(args []string, flag string) bool {
+	for _, arg := range args {
+		if arg == flag {
+			return true
+		}
+	}
+	return false
 }
 
 func run(stdin io.Reader, stdout, stderr io.Writer) int {

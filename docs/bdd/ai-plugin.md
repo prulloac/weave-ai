@@ -142,6 +142,16 @@ Behavior cases for the `weave-ai` subprocess. Core redaction and per-document co
 - **And** it reports `vision: true`, `embedding: true` and the protocol
 - **And** it never prints API key values
 
+### Scenario: Describe prints a machine manifest
+
+- **When** I run `weave-ai --describe --json`
+- **Then** stdout is one `weave.extension/v1` object with `name: ai`
+- **And** it declares `weave.cli/v1` and `analysis_modes: [document]`
+- **And** it carries the injected release version (`dev` for local builds)
+- **And** it contains no configuration values, endpoints or key material
+
+Executable coverage: `TestDescribeJSONPrintsMachineManifest`.
+
 ### Scenario: Vision and embedding model overrides
 
 - **Given** a configuration file with `vision_model` and `embedding_model`

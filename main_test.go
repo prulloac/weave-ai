@@ -205,7 +205,7 @@ func TestDescribePrintsEndpointAndConsent(t *testing.T) {
 	t.Setenv("WEAVE_AI_API_KEY", "super-secret-key")
 
 	var stdout, stderr bytes.Buffer
-	if code := describe(&stdout, &stderr); code != 0 {
+	if code := describe(&stdout, &stderr, false); code != 0 {
 		t.Fatalf("describe exit=%d stderr=%q", code, stderr.String())
 	}
 	for _, want := range []string{
@@ -225,6 +225,42 @@ func TestDescribePrintsEndpointAndConsent(t *testing.T) {
 	}
 	if strings.Contains(stdout.String(), "super-secret-key") {
 		t.Fatal("describe leaked the API key")
+	}
+}
+
+func TestDescribeJSONPrintsMachineManifest(t *testing.T) {
+	config := filepath.Join(t.TempDir(), "ai.yaml")
+	if err := os.WriteFile(config, []byte("provider: ollama\nmodel: test-model\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("WEAVE_AI_CONFIG", config)
+	t.Setenv("WEAVE_AI_PROVIDER", "")
+	t.Setenv("WEAVE_AI_MODEL", "")
+	t.Setenv("WEAVE_AI_BASE_URL", "")
+	t.Setenv("WEAVE_AI_API_KEY", "super-secret-key")
+
+	var stdout, stderr bytes.Buffer
+	if code := describe(&stdout, &stderr, true); code != 0 {
+		t.Fatalf("describe exit=%d stderr=%q", code, stderr.String())
+	}
+	var got manifest
+	if err := json.Unmarshal(stdout.Bytes(), &got); err != nil {
+		t.Fatalf("decode manifest: %v\n%s", err, stdout.String())
+	}
+	if got.V != manifestVersion || got.Name != extensionName {
+		t.Fatalf("unexpected manifest identity: %+v", got)
+	}
+	if len(got.Protocols) != 1 || got.Protocols[0] != protocolVersion {
+		t.Fatalf("unexpected protocols: %v", got.Protocols)
+	}
+	if len(got.AnalysisModes) != 1 || got.AnalysisModes[0] != "document" {
+		t.Fatalf("unexpected analysis modes: %v", got.AnalysisModes)
+	}
+	if got.Version != version {
+		t.Fatalf("version = %q, want %q", got.Version, version)
+	}
+	if strings.Contains(stdout.String(), "super-secret-key") || strings.Contains(stdout.String(), "test-model") {
+		t.Fatalf("machine manifest leaked configuration: %s", stdout.String())
 	}
 }
 

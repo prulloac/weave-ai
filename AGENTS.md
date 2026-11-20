@@ -40,6 +40,8 @@ README.md           install, usage, configuration and privacy
   not a Go API.
 - One request per process: JSON on stdin, JSON on stdout, diagnostics on stderr, exit `0` on success
   and `1` on failure.
+- `--describe` prints human capability text; `--describe --json` prints the `weave.extension/v1`
+  machine manifest that `weave extensions check` reads.
 - The authoritative behavior spec is
   [`weave-ai-plugin.md`](https://github.com/prulloac/weave-docs/blob/main/specs/weave-ai-plugin.md).
   `weave` owns the IPC schema and conformance fixtures per
